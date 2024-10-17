@@ -2305,73 +2305,66 @@ static void StartTransmitDMA(SPIDRV_Handle_t handle,
                              int count,
                              SPIDRV_Callback_t callback)
 {
-  void *rxPort, *txPort;
-  DMADRV_DataSize_t size;
+    void *rxPort, *txPort;
+    DMADRV_DataSize_t size;
 
-  handle->blockingCompleted  = false;
-  handle->transferCount      = count;
-  handle->userCallback       = callback;
+    handle->blockingCompleted  = false;
+    handle->transferCount      = count;
+    handle->userCallback       = callback;
 
-  if (0) {
-  }
-#if defined(USART_PRESENT)
-  else if (handle->peripheralType == spidrvPeripheralTypeUsart) {
+    if (0) {
+    }
+    #if defined(USART_PRESENT)
+    else if (handle->peripheralType == spidrvPeripheralTypeUsart) {
     handle->peripheral.usartPort->CMD = USART_CMD_CLEARRX | USART_CMD_CLEARTX;
 
     if (handle->initData.frameLength > 9) {
-      rxPort = (void *)&(handle->peripheral.usartPort->RXDOUBLE);
-      txPort = (void *)&(handle->peripheral.usartPort->TXDOUBLE);
+        rxPort = (void *)&(handle->peripheral.usartPort->RXDOUBLE);
+        txPort = (void *)&(handle->peripheral.usartPort->TXDOUBLE);
     } else if (handle->initData.frameLength == 9) {
-      rxPort = (void *)&(handle->peripheral.usartPort->RXDATAX);
-      txPort = (void *)&(handle->peripheral.usartPort->TXDATAX);
+        rxPort = (void *)&(handle->peripheral.usartPort->RXDATAX);
+        txPort = (void *)&(handle->peripheral.usartPort->TXDATAX);
     } else {
-      rxPort = (void *)&(handle->peripheral.usartPort->RXDATA);
-      txPort = (void *)&(handle->peripheral.usartPort->TXDATA);
+        rxPort = (void *)&(handle->peripheral.usartPort->RXDATA);
+        txPort = (void *)&(handle->peripheral.usartPort->TXDATA);
     }
-  }
-#endif
-#if defined(EUSART_PRESENT)
-  else if (handle->peripheralType == spidrvPeripheralTypeEusart) {
+    }
+    #endif
+    #if defined(EUSART_PRESENT)
+    else if (handle->peripheralType == spidrvPeripheralTypeEusart) {
     clearEusartFifos(handle->peripheral.eusartPort);
 
     rxPort = (void *)&(handle->peripheral.eusartPort->RXDATA);
     txPort = (void *)&(handle->peripheral.eusartPort->TXDATA);
-  }
-#endif
-  else {
+    }
+    #endif
+    else {
     return;
-  }
+    }
 
-  if (handle->initData.frameLength > 8) {
-    size = dmadrvDataSize2;
-  } else {
-    size = dmadrvDataSize1;
-  }
+    if (handle->initData.frameLength > 8) {
+        size = dmadrvDataSize2;
+    } else {
+        size = dmadrvDataSize1;
+    }
 
-  em1RequestAdd(handle);
+    em1RequestAdd(handle);
 
-  // Receive DMA runs only to get precise numbers for SPIDRV_GetTransferStatus()
-  // Start receive DMA.
-  DMADRV_PeripheralMemory(handle->rxDMACh,
-                          handle->rxDMASignal,
-                          &(handle->dummyRx),
-                          rxPort,
-                          false,
-                          count,
-                          size,
-                          RxDMAComplete,
-                          handle);
-
-  // Start transmit DMA.
-  DMADRV_MemoryPeripheral(handle->txDMACh,
-                          handle->txDMASignal,
-                          txPort,
-                          (void*)buffer,
-                          true,
-                          count,
-                          size,
-                          NULL,
-                          NULL);
+    (void)buffer;
+    extern bool dma_callback(unsigned int channel, unsigned int sequenceNo, void *userParam);
+    extern uint8_t dma_tx_buf_0[];
+    extern uint8_t dma_tx_buf_1[];
+    DMADRV_MemoryPeripheralPingPong(
+        handle->txDMACh,
+        handle->txDMASignal,
+        txPort,
+        dma_tx_buf_0,
+        dma_tx_buf_1,
+        true,
+        count,
+        size,
+        dma_callback,
+        NULL);
 }
 
 /***************************************************************************//**
